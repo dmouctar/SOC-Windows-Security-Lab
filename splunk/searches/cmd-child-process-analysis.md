@@ -90,3 +90,35 @@ The captured records demonstrate how Sysmon process-creation telemetry supports 
 **Incident classification:** Inconclusive at the overall case level; the visible examples appear consistent with routine activity.
 
 **Detection rule:** Not yet implemented.
+
+## Command-Line Telemetry Validation
+
+### SPL Query
+
+```spl
+index=* earliest=-24h source="XmlWinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=1
+| eval command_line_present=if(isnotnull(CommandLine) AND len(CommandLine)>0,"Yes","No")
+| stats count by host, command_line_present
+```
+
+### Observed Results
+
+The captured search returned 1,890 events.
+
+| Host | Command line present | Command line missing |
+|---|---:|---:|
+| MOUCTAR-SERV19 | 358 | 0 |
+| win11 | 1,532 | 0 |
+| **Total** | **1,890** | **0** |
+
+### Interpretation
+
+Every event returned by this search had a nonempty `CommandLine` field.
+
+This supports using command-line fields for further investigation and detection development in the current dataset. It does not establish that command-line logging will always be complete or that the captured commands are malicious.
+
+### Validation Status
+
+**Command-line field coverage:** Verified for the captured search results.
+
+**Detection accuracy:** Not yet evaluated.
