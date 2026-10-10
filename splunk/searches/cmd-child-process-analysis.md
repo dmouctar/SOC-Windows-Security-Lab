@@ -39,10 +39,54 @@ The process name alone is insufficient to determine whether an event is maliciou
 
 ## Validation Status
 
-**Search execution:** Verified by screenshot.
-
 **Observed event count:** 35.
 
 **Confirmed malicious activity:** None established.
 
 **Next step:** Inspect individual command lines and determine whether any process relationship warrants a detection rule.
+
+## Individual Event Investigation
+
+### Evidence Reviewed
+
+A Splunk search returned 35 Sysmon process-creation events where `cmd.exe` was the parent process.
+
+The visible records included events from `win11` and `MOUCTAR-SERV19`, running under `NT AUTHORITY\SYSTEM`.
+
+### Observed Command Lines
+
+Examples from the captured events included:
+
+- `ping -n 2 127.0.0.1`
+- `FindStr /L \Google\GoogleUpdater`
+- Splunk Universal Forwarder internal checks
+- Splunk `bttool` server-list operations
+
+### Initial Assessment
+
+The loopback ping is consistent with a local connectivity test. The Google Updater-related command is consistent with software-update activity. The Splunk-related commands appear consistent with monitoring-agent operations.
+
+These interpretations are preliminary. The full process chain, executable signatures, and surrounding events would be needed for stronger confirmation.
+
+### Investigation Method
+
+1. Identify the timestamp, host, and user.
+2. Inspect the parent and child process paths.
+3. Review the complete command line.
+4. Determine whether the activity matches expected software or administration behavior.
+5. Correlate with nearby events and other telemetry.
+6. Record the conclusion and any remaining uncertainty.
+
+### Conclusion
+
+The captured records demonstrate how Sysmon process-creation telemetry supports investigation of command-line activity. No confirmed malicious behavior was established from the reviewed sample.
+
+### Status
+
+**Search execution:** Verified.
+
+**Individual command lines:** Inspected in the visible sample.
+
+**Incident classification:** Inconclusive at the overall case level; the visible examples appear consistent with routine activity.
+
+**Detection rule:** Not yet implemented.
