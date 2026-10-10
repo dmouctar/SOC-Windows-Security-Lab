@@ -110,3 +110,30 @@ The Splunk search results showed Sysmon Operational events from both monitored W
 The initial search returned 1,273 events across all matching sources and sourcetypes. Three additional System log events and one Application log event also matched the filter.
 
 These are counts from the captured search window. The event ID filter and individual event records still require validation before all matching events can be classified as process-creation events.
+
+## Raw Event Validation
+
+A sample of individual events was inspected in Splunk Search & Reporting.
+
+### Verified Fields
+
+| Field | Observation |
+|---|---|
+| `_time` | Event timestamp present |
+| `host` | `win11` observed |
+| `EventCode` | Value `1` observed |
+| `EventID` | Value `1` observed |
+| `Image` | Executable path present |
+| `ParentImage` | Parent executable path present |
+| `CommandLine` | Process command line present |
+| `User` | `NT AUTHORITY\SYSTEM` observed |
+
+### Observed Activity
+
+Sample records included Splunk Universal Forwarder processes and Microsoft Edge Update. These are plausible examples of legitimate background activity; their presence alone does not indicate malicious behavior.
+
+### Validation Conclusion
+
+The search returned individual records from the Sysmon Operational source with process-related fields populated. This supports the conclusion that Sysmon process-creation telemetry is searchable in the lab.
+
+No malicious activity has been established by this query. Additional analysis is needed to develop and validate a detection rule.
