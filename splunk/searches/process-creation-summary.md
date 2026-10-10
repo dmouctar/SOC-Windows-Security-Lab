@@ -96,3 +96,17 @@ This is an initial process-creation analysis search, not a confirmed malicious-a
 2. Inspect a representative event's raw details.
 3. Confirm the event is Sysmon Event ID 1.
 4. Develop a focused detection hypothesis and test it against benign and suspicious activity.
+
+## Source Verification Results
+
+The Splunk search results showed Sysmon Operational events from both monitored Windows hosts.
+
+| Host | Sysmon events matching the initial filter |
+|---|---:|
+| win11 | 911 |
+| MOUCTAR-SERV19 | 358 |
+| **Total** | **1,269** |
+
+The initial search returned 1,273 events across all matching sources and sourcetypes. Three additional System log events and one Application log event also matched the filter.
+
+These are counts from the captured search window. The event ID filter and individual event records still require validation before all matching events can be classified as process-creation events.
