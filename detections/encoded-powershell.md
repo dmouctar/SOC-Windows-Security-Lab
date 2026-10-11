@@ -95,3 +95,33 @@ The matching expression detected the encoded-command argument in this synthetic 
 This validates one test case only. Broader testing is still needed to assess alternative argument formats, false positives, and detection coverage.
 
 No PowerShell payload was executed during this test.
+
+## False-Positive Logic Test
+
+### Test Case
+
+A synthetic event was created with a normal PowerShell command:
+
+```text
+powershell.exe -ExecutionPolicy Restricted -Command Write-Host test
+```
+
+### Expected Result
+
+The event should not be flagged because the command line does not contain the encoded-command arguments targeted by the expression.
+
+### Observed Result
+
+- Synthetic events generated: 1
+- Observed `encoded_flag`: `No`
+- Expected result: `No`
+- Test outcome: Pass
+
+### Combined Test Summary
+
+| Test | Expected | Observed | Outcome |
+|---|---|---|---|
+| Command line contains `-EncodedCommand` | Yes | Yes | Pass |
+| Ordinary PowerShell command | No | No | Pass |
+
+These synthetic tests validate two specific cases. Further testing is needed for argument variations, spacing, abbreviated switches, and false positives before this logic is used as a production alert.
