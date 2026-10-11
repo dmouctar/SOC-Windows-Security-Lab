@@ -65,3 +65,33 @@ If a match appears:
 **Detection effectiveness:** Not yet validated against known test cases.
 
 **Confirmed malicious activity:** None established by this search.
+
+## Detection Logic Test
+
+### Test Method
+
+A synthetic Splunk event was generated using `makeresults`. The event contained a sample PowerShell executable path and a command line with the `-EncodedCommand` argument.
+
+### Test SPL
+
+```spl
+| makeresults
+| eval Image="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+| eval CommandLine="powershell.exe -EncodedCommand VwByAGkAdABlAC0ASABvAHMAdAAgACcAdABlAHMAdAAnAA=="
+| eval encoded_flag=if(match(lower(CommandLine), "-enc|-encodedcommand"), "Yes", "No")
+| table Image CommandLine encoded_flag
+```
+
+### Observed Result
+
+- Synthetic events generated: 1
+- Events flagged by the expression: 1
+- Observed `encoded_flag`: `Yes`
+
+### Conclusion
+
+The matching expression detected the encoded-command argument in this synthetic test case.
+
+This validates one test case only. Broader testing is still needed to assess alternative argument formats, false positives, and detection coverage.
+
+No PowerShell payload was executed during this test.
