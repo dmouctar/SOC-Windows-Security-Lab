@@ -1,70 +1,231 @@
-# SOC and Windows Security Monitoring Lab
+# SOC Windows Security Monitoring & Threat Detection Lab
 
-#Project Overview
+A hands-on Security Operations Center (SOC) lab built with **Splunk Enterprise, Windows Server 2019, Sysmon, and Windows Security Event Logs**. This project demonstrates security monitoring, threat detection, authentication analysis, incident investigation, and SIEM dashboard development.
 
-This project documents my hands-on Security Operations Center (SOC) and Windows infrastructure lab. The goal is to develop practical skills in security monitoring, log analysis, detection engineering, threat hunting, and incident response.
+## 1. Project Overview
 
-The lab combines Windows enterprise infrastructure with centralized security monitoring using Splunk Enterprise.
+The objective of this project is to simulate SOC analyst responsibilities by collecting endpoint telemetry, analyzing Windows security events, developing detection rules, and investigating suspicious activity.
 
-#Lab Components
+The lab focuses on identifying potential security threats, including:
 
-The environment includes the following technologies, which will be documented and validated as the project progresses:
- 1. Splunk Enterprise: Security event search and analysis.
- 2. Sysmon: Detailed Windows endpoint telemetry.
- 3. Windows Server 2019: Windows infrastructure and Active Directory.
- 4. Active Directory and Group Policy: Domain identity and policy management.
- 5. Windows Event Logs: Operating system and security auditing.
- 6. DNS and DHCP: Name resolution and network address management.
- 7. pfSense: Network routing and firewall controls.
+- Brute-force authentication attempts
+- Failed and successful Windows logons
+- Suspicious account activity
+- PowerShell execution
+- Encoded PowerShell commands
+- Suspicious process creation
+- Registry-related activity
+- Potentially abnormal network connections
 
-#Learning Objectives
-  1. Understand how endpoint and Windows security logs are generated and collected.
-  2. Analyze Windows Security and Sysmon events.
-  3. Develop Splunk SPL searches for security investigations.
-  4. Build and validate security monitoring dashboards.
-  5. Investigate authentication, process execution, and network activity.
-  6. Detect suspicious behavior and understand potential false positives.
-  7. Practice threat hunting and incident response in an authorized lab.
+## 2. Lab Architecture
 
-#Planned Detection Use Cases
+| Component | Technology |
+|---|---|
+| SIEM | Splunk Enterprise |
+| Operating System | Windows Server 2019 |
+| Endpoint Monitoring | Sysmon |
+| Security Telemetry | Windows Event Logs |
+| Log Analysis | SPL (Search Processing Language) |
+| Detection Engineering | Custom SPL searches |
+| Documentation | Markdown and GitHub |
 
-The following are planned use cases, not claims that every detection is already implemented or validated.
-  1. Failed and successful logons
-  2. Process creation and PowerShell activity
-  3. DNS queries and network connections
-  4. Encoded PowerShell and suspicious command execution
-  5. LOLBins and Certutil activity
-  6. Scheduled task creation
-  7. Registry persistence
-  8. Windows service installation
-  9. LSASS process access
-  10. Suspicious parent-child process relationships
-  11. Remote Desktop Protocol (RDP) activity
+### Architecture Overview
 
-Each completed use case will include its SPL search, explanation, relevant event IDs, investigation steps, false-positive considerations, and validation evidence where available.
+1. Windows Server generates security and system events.
+2. Sysmon captures endpoint activity, including process creation and network connections.
+3. Windows Security Event Logs capture authentication activity.
+4. Logs are collected and analyzed in Splunk Enterprise.
+5. SPL searches identify suspicious patterns.
+6. Investigation documentation records findings and validation results.
 
-#Repository Structure
+![SOC Lab Architecture](docs/architecture.md)
 
-  1. docs/ — Architecture and setup documentation
-  2. splunk/ — SPL searches and dashboard exports
-  3. sysmon/ — Sysmon configuration and event documentation
-  4. windows/ — Windows logging, auditing, and hardening
-  5. pfsense/ — Sanitized firewall and network documentation
-  6. detections/ — Detection logic and investigation guides
-  7. investigations/ — Sanitized threat-hunting reports
-  8. incident-response/ — Incident response procedures
-  9. screenshots/ — Sanitized lab evidence
+## 3. Enterprise Security Operations Dashboard
 
-These sections will be populated as the project is documented.
+The Splunk dashboard provides an overview of endpoint activity and security monitoring.
 
-#Security Considerations
+### Main SOC Dashboard
 
-This repository will contain sanitized documentation and authorized lab examples. Credentials, passwords, tokens, private keys, sensitive network configurations, and unredacted logs will not be published.
+![Enterprise Security Operations Dashboard](splunk/dashboards/enterprise-security-operations-dashboard.png)
 
-#Project Status
+### Authentication and Threat Detection Dashboard
 
-In progress. This repository will evolve as I document the lab, verify log collection, develop detections, test use cases, and record investigation results.
+![Authentication and Threat Detection Dashboard](splunk/dashboards/enterprise-security-operations-dashboard2.png)
 
-#Skills Developed
+Dashboard panels include:
 
-Splunk · SPL · Windows Security Monitoring · Sysmon · Active Directory · Group Policy · Detection Engineering · Threat Hunting · Incident Response
+- Total Sysmon Events
+- PowerShell Executions
+- Failed Logons
+- Successful Logons
+- Network Connections
+- File Creations
+- Process Creation Timeline
+- PowerShell Activity
+- DNS Queries
+- Privileged Account Activity
+- Failed Logons by Account
+- Potential Brute-Force Activity
+
+Dashboard results depend on the selected time range and the availability of matching telemetry.
+
+## 4. Detection Engineering
+
+Custom SPL searches were developed to identify suspicious endpoint and authentication activity.
+
+| Detection | Description |
+|---|---|
+| Windows Brute-Force Detection | Identifies repeated failed authentication attempts. |
+| Encoded PowerShell | Supports investigation of potentially suspicious encoded commands. |
+| Registry Utility Investigation | Examines potentially suspicious registry-related activity. |
+| Process Creation Analysis | Investigates process execution and parent-child relationships. |
+
+### Example: Windows Brute-Force Detection
+
+The detection analyzes Windows Security Event ID 4625 and groups failed logons by time, source IP, and targeted account.
+
+```spl
+index=* host="MOUCTAR-SERV19"
+source="WinEventLog:Security" EventCode=4625
+| rex field=_raw "Source Network Address:\s+(?<Source_IP>[^\r\n]+)"
+| rex field=_raw "(?s)Account For Which Logon Failed:.*?Account Name:\s+(?<Failed_Account>[^\r\n]+)"
+| eval Failed_Account=lower(trim(Failed_Account))
+| bin _time span=10m
+| stats count as Failed_Attempts by _time Source_IP Failed_Account
+| where Failed_Attempts>=5
+| timechart span=1d sum(Failed_Attempts) as Failed_Attempts by Source_IP
+```
+
+## 5. Security Investigations
+
+The investigations directory contains documented analysis of authentication events and suspicious activity.
+
+| Investigation | Focus |
+|---|---|
+| Windows Failed Logon Analysis | Event ID 4625 and failed authentication attempts |
+| Windows Successful Logon Analysis | Event ID 4624 and successful authentication |
+| Authentication Correlation | Correlating failed and successful authentication |
+| Authentication Correlation Detection | Identifying suspicious authentication sequences |
+| Brute-Force Validation | Validating detection logic against authentication events |
+
+### Investigation Evidence
+
+Screenshots documenting the investigations are available in `docs/Screenshots/`.
+
+1. Failed Authentication Monitoring
+2. Targeted Account Analysis
+3. Brute-Force Detection
+4. Successful Login Analysis
+5. Authentication Event Analysis
+6. Failed-Successful Authentication Correlation
+
+## 6. Windows Security Event Analysis
+
+The lab uses Windows Security Event IDs to investigate authentication behavior.
+
+| Event ID | Description |
+|---|---|
+| 4624 | Successful account logon |
+| 4625 | Failed account logon |
+
+The lab also uses Sysmon telemetry to investigate endpoint behavior.
+
+| Sysmon Event ID | Description |
+|---|---|
+| 1 | Process Creation |
+| 3 | Network Connection |
+| 11 | File Creation |
+
+These events help establish context when investigating potentially suspicious activity.
+
+## 7. Repository Structure
+
+```text
+SOC-Windows-Security-Lab/
+│
+├── detections/
+│   ├── encoded-powershell.md
+│   ├── registry-utility-investigation.md
+│   └── windows-brute-force-detection.spl
+│
+├── docs/
+│   ├── architecture.md
+│   └── Screenshots/
+│       ├── 1. Failed Authentication Monitoring.png
+│       ├── 2. Targeted Account Analysis.png
+│       ├── 3-brute-force-detection.png
+│       ├── 4-successful-login-analysis.png
+│       ├── 5-authentication-event-analysis.png
+│       └── 6-failed-successful-correlation.png
+│
+├── investigations/
+│   ├── windows-authentication-failure-analysis/
+│   │   ├── README.md
+│   │   └── brute-force-detection-validation.md
+│   ├── authentication-correlation-detection.md
+│   ├── windows-authentication-correlation.md
+│   ├── windows-failed-logon-analysis.md
+│   └── windows-successful-logon-analysis.md
+│
+├── splunk/
+│   ├── dashboards/
+│   │   ├── enterprise-security-operations-dashboard.md
+│   │   ├── enterprise-security-operations-dashboard.png
+│   │   └── enterprise-security-operations-dashboard2.png
+│   │
+│   └── searches/
+│       ├── cmd-child-process-analysis.md
+│       └── process-creation-summary.md
+│
+└── README.md
+```
+
+## 8. Skills Demonstrated
+
+**Security Operations**
+- SIEM monitoring and log analysis
+- Security event investigation
+- Threat detection and validation
+- Authentication monitoring
+- Incident investigation
+
+**Technical Skills**
+- Splunk Enterprise
+- Search Processing Language (SPL)
+- Windows Server 2019
+- Sysmon
+- Windows Event Logs
+- PowerShell
+- Process and network activity analysis
+- Git and GitHub documentation
+
+## 9. Project Objectives and Learning Outcomes
+
+Through this project, I developed practical experience with:
+
+- Building and configuring a Windows security monitoring environment.
+- Collecting and analyzing endpoint telemetry.
+- Writing custom SPL detection searches.
+- Investigating failed and successful authentication events.
+- Correlating authentication activity to identify suspicious patterns.
+- Developing dashboards to visualize security events.
+- Documenting detection logic and investigation findings.
+
+## 10. Future Improvements
+
+Potential enhancements include:
+
+- Integrating Active Directory authentication monitoring.
+- Expanding detection coverage for privilege escalation.
+- Developing additional Sysmon-based threat detections.
+- Improving alert severity and risk scoring.
+
+## Disclaimer
+
+This project is an educational cybersecurity lab developed for hands-on learning and professional development. All testing and simulated security activities are conducted within a controlled lab environment.
+
+---
+
+**Author:** Djibrilla Mouctar  
+**Project:** SOC Windows Security Monitoring & Threat Detection Lab  
+**Technologies:** Splunk Enterprise | Windows Server 2019 | Sysmon | SPL | Windows Security Event Logs
