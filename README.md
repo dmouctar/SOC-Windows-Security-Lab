@@ -1,4 +1,4 @@
-# SOC Windows Security Monitoring & Threat Detection Lab
+# SOC Windows Security Lab
 
 A hands-on Security Operations Center (SOC) lab built with **Splunk Enterprise, Windows Server 2019, Sysmon, and Windows Security Event Logs**. This project demonstrates security monitoring, threat detection, authentication analysis, incident investigation, and SIEM dashboard development.
 
