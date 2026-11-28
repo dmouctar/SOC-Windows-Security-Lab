@@ -1,78 +1,113 @@
-# Encoded PowerShell Detection
+# Encoded PowerShell Detection and Investigation
 
-## Objective
+## 1. Overview
 
-Identify PowerShell process-creation events whose command lines contain common encoded-command arguments. Attackers may use encoded commands to make scripts harder to read during an initial review.
+This document covers the development, implementation, and validation of an SPL-based detection designed to identify potentially suspicious PowerShell execution involving encoded-command arguments.
 
-## Data Source
+PowerShell is a legitimate Windows administration tool. However, attackers may abuse it to execute commands, download files, run scripts, and perform malicious activities.
 
-- Platform: Windows
-- Telemetry: Sysmon Operational log
-- Event ID: Sysmon Event ID 1 — Process Create
-- Splunk source: `XmlWinEventLog:Microsoft-Windows-Sysmon/Operational`
+Encoding command-line arguments can make scripts harder to read during an initial investigation.
 
-## SPL Query
+The objective of this detection is to identify PowerShell process-creation events containing common encoded-command arguments and provide a starting point for further security investigation.
+
+## 2. Lab Environment and Data Sources
+
+| Component | Configuration |
+|---|---|
+| SIEM | Splunk Enterprise |
+| Operating System | Windows |
+| Endpoint Telemetry | Sysmon |
+| Event ID | Sysmon Event ID 1 |
+| Event Description | Process Creation |
+| Splunk Source | `XmlWinEventLog:Microsoft-Windows-Sysmon/Operational` |
+| Detection Host | `MOUCTAR-SERV19` and `win11` |
+
+Sysmon Event ID 1 records process creation activity, including executable paths, command-line arguments, and process relationships when configured and collected.
+
+## 3. Detection Objective
+
+The detection focuses on identifying:
+
+- PowerShell process execution.
+- Encoded-command arguments.
+- Potentially suspicious command-line activity.
+- PowerShell execution across monitored Windows endpoints.
+
+The detection currently examines two command-line indicators:
+
+- `-enc`
+- `-encodedcommand`
+
+These indicators are used to identify potentially encoded PowerShell execution.
+
+A matching command line does not automatically indicate malicious activity.
+
+## 4. SPL Detection Query
+
+The following search was implemented in Splunk Enterprise:
 
 ```spl
 index=* earliest=-24h source="XmlWinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=1
-| where match(lower(Image), "powershell\.exe$")
+| where match(lower(Image), "powershell\\.exe$")
 | eval encoded_flag=if(match(lower(CommandLine), "-enc|-encodedcommand"), "Yes", "No")
 | stats count by host, encoded_flag
 ```
 
-## How It Works
+### 4.1 SPL Breakdown
 
-1. Searches Sysmon process-creation events from the preceding 24 hours.
-2. Filters for PowerShell executable paths.
-3. Checks command lines for `-enc` or `-encodedcommand`.
-4. Groups results by host and whether the command line matched the expression.
+| SPL Command | Purpose |
+|---|---|
+| `index=*` | Searches available indexes |
+| `earliest=-24h` | Restricts the search to the preceding 24 hours |
+| `source=...` | Selects Sysmon Operational events |
+| `EventCode=1` | Filters for process creation |
+| `where match()` | Filters for PowerShell executable paths |
+| `eval` | Creates an encoded-command classification field |
+| `stats count` | Counts events by host and classification |
 
-## Validation Evidence
+### 4.2 Detection Logic
 
-The captured Splunk search returned 354 PowerShell process-creation events:
+The search performs the following operations:
 
-| Host | Not flagged | Flagged |
-|---|---:|---:|
-| `win11` | 342 | 0 |
-| `MOUCTAR-SERV19` | 12 | 0 |
-| **Total** | **354** | **0** |
+1. Retrieves Sysmon process-creation events.
+2. Filters events associated with `powershell.exe`.
+3. Examines the command line for encoded-command indicators.
+4. Assigns either `Yes` or `No` to the `encoded_flag` field.
+5. Groups results by hostname and detection classification.
 
-These counts describe the captured search window.
+## 5. Initial Detection Results
 
-## Limitations
+The initial Splunk search returned 354 PowerShell process-creation events.
 
-- This is an initial matching test, not a production-ready alert.
-- The expression may miss alternative encodings or command-line formats.
-- Encoded PowerShell can be used for legitimate administration as well as malicious activity.
-- A match would require investigation; it would not prove compromise.
+### 5.1 Observed Results
 
-## Investigation Procedure
+| Host | Not Flagged | Flagged | Total |
+|---|---:|---:|---:|
+| `win11` | 342 | 0 | 342 |
+| `MOUCTAR-SERV19` | 12 | 0 | 12 |
+| **Total** | **354** | **0** | **354** |
 
-If a match appears:
+### 5.2 Analysis
 
-1. Review the complete command line.
-2. Identify the host, user, timestamp, and parent process.
-3. Inspect related Sysmon process and network events.
-4. Correlate with Windows Security logs and other available telemetry.
-5. Determine whether the activity is expected, suspicious, or inconclusive.
+The search identified 354 PowerShell process-creation events across two monitored Windows systems.
 
-## Current Status
+No command lines matched the encoded-command indicators during the captured search window.
 
-**Search execution:** Verified.
+This establishes an initial observation of PowerShell activity within the lab.
 
-**Observed encoded-command matches:** Zero in the captured window.
+However, zero matches do not establish that encoded PowerShell activity is impossible or that the environment is free from malicious activity.
 
-**Detection effectiveness:** Not yet validated against known test cases.
+## 6. Detection Logic Validation
 
-**Confirmed malicious activity:** None established by this search.
+To verify that the detection expression works as intended, synthetic Splunk events were generated using `makeresults`.
 
-## Detection Logic Test
+These tests allowed the detection logic to be evaluated without executing an actual PowerShell payload.
 
-### Test Method
+### 6.1 Encoded Command Test
 
-A synthetic Splunk event was generated using `makeresults`. The event contained a sample PowerShell executable path and a command line with the `-EncodedCommand` argument.
+**Objective:** Verify that the detection identifies a command line containing `-EncodedCommand`.
 
-### Test SPL
+Test SPL:
 
 ```spl
 | makeresults
@@ -82,46 +117,28 @@ A synthetic Splunk event was generated using `makeresults`. The event contained 
 | table Image CommandLine encoded_flag
 ```
 
-### Observed Result
+**Observed results:**
 
-- Synthetic events generated: 1
-- Events flagged by the expression: 1
-- Observed `encoded_flag`: `Yes`
+| Test Attribute | Result |
+|---|---|
+| Synthetic events generated | 1 |
+| Encoded-command argument | Present |
+| Observed classification | Yes |
+| Expected classification | Yes |
+| Outcome | Pass |
 
-### Conclusion
+The detection expression successfully identified the encoded-command argument in this test.
 
-The matching expression detected the encoded-command argument in this synthetic test case.
+### 6.2 Normal PowerShell Command Test
 
-This validates one test case only. Broader testing is still needed to assess alternative argument formats, false positives, and detection coverage.
+**Objective:** Verify that an ordinary PowerShell command is not incorrectly classified as encoded.
 
-No PowerShell payload was executed during this test.
-
-## False-Positive Logic Test
-
-### Test Case
-
-A synthetic event was created with a normal PowerShell command:
+Test command line:
 
 ```text
 powershell.exe -ExecutionPolicy Restricted -Command Write-Host test
 ```
 
-### Expected Result
+Test SPL:
 
-The event should not be flagged because the command line does not contain the encoded-command arguments targeted by the expression.
-
-### Observed Result
-
-- Synthetic events generated: 1
-- Observed `encoded_flag`: `No`
-- Expected result: `No`
-- Test outcome: Pass
-
-### Combined Test Summary
-
-| Test | Expected | Observed | Outcome |
-|---|---|---|---|
-| Command line contains `-EncodedCommand` | Yes | Yes | Pass |
-| Ordinary PowerShell command | No | No | Pass |
-
-These synthetic tests validate two specific cases. Further testing is needed for argument variations, spacing, abbreviated switches, and false positives before this logic is used as a production alert.
+```spl
